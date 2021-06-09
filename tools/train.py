@@ -51,16 +51,18 @@ def parse_args():
     parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
     parse.add_argument('--port', dest='port', type=int, default=44554,)
     parse.add_argument('--model', dest='model', type=str, default='bisenetv2',)
+    parse.add_argument('--cfg_file', type=str, default='bisenetv2', help="",)
     parse.add_argument('--finetune-from', type=str, default=None,)
     return parse.parse_args()
 
 args = parse_args()
-cfg = cfg_factory[args.model]
+cfg = cfg_factory[args.cfg_file] #bisenetv2_combined
 
 
 
 def set_model():
-    net = model_factory[cfg.model_type](19)
+    net = model_factory[cfg.model_type](cfg.class_num)
+    # net = model_factory[cfg.model_type](19)
     if not args.finetune_from is None:
         net.load_state_dict(torch.load(args.finetune_from, map_location='cpu'))
     if cfg.use_sync_bn: net = set_syncbn(net)
@@ -195,7 +197,8 @@ def train():
                 loss_pre_meter, loss_aux_meters)
 
     ## dump the final model and evaluate the result
-    save_pth = osp.join(cfg.respth, 'model_final.pth')
+    # save_pth = osp.join(cfg.respth, 'model_final.pth')
+    save_pth = osp.join(cfg.respth, '{}_model_final.pth'.format(time.strftime('%Y-%m-%d-%H-%M-%S')))
     logger.info('\nsave models to {}'.format(save_pth))
     state = net.module.state_dict()
     if dist.get_rank() == 0: torch.save(state, save_pth)

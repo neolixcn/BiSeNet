@@ -269,10 +269,13 @@ class BGALayer(nn.Module):
         left2 = self.left2(x_d)
         right1 = self.right1(x_s)
         right2 = self.right2(x_s)
-        right1 = self.up1(right1)
+        # right1 = self.up1(right1)
+        right1 = F.interpolate(right1, size=left1.size()[2:])
         left = left1 * torch.sigmoid(right1)
         right = left2 * torch.sigmoid(right2)
-        right = self.up2(right)
+        # right = self.up2(right)
+        right = F.interpolate(right, size=left.size()[2:])
+        # print(left1.shape,left2.shape,left.shape,right1.shape,right2.shape,right.shape)
         out = self.conv(left + right)
         return out
 

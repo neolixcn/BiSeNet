@@ -184,10 +184,10 @@ class MscEvalCrop(object):
 
 
 @torch.no_grad()
-def eval_model(net, ims_per_gpu, im_root, im_anns):
+def eval_model(net, ims_per_gpu, im_root, im_anns, cropsize, cls_num):
     is_dist = dist.is_initialized()
     dl = get_data_loader(im_root, im_anns, ims_per_gpu, None,
-            None, mode='val', distributed=is_dist)
+            cropsize=cropsize, mode='val', distributed=is_dist)
     net.eval()
 
     heads, mious = [], []
@@ -206,13 +206,13 @@ def eval_model(net, ims_per_gpu, im_root, im_anns):
         scales=(1., ),
         lb_ignore=255,
     )
-    mIOU = single_crop(net, dl, 19)
+    mIOU = single_crop(net, dl, cls_num)
     heads.append('single_scale_crop')
     mious.append(mIOU)
     logger.info('single scale crop mIOU is: %s\n', mIOU)
 
     ms_flip = MscEvalV0((0.5, 0.75, 1, 1.25, 1.5, 1.75), True)
-    mIOU = ms_flip(net, dl, 19)
+    mIOU = ms_flip(net, dl, cls_num)
     heads.append('ms_flip')
     mious.append(mIOU)
     logger.info('ms flip mIOU is: %s\n', mIOU)
@@ -236,8 +236,9 @@ def evaluate(cfg, weight_pth):
 
     ## model
     logger.info('setup and restore model')
+    net = model_factory[cfg.model_type](cfg.class_num)
     net = model_factory[cfg.model_type](19)
-    #  net = BiSeNetV2(19)
+    #net = BiSeNetV2(19)
     net.load_state_dict(torch.load(weight_pth))
     net.cuda()
 
@@ -251,7 +252,8 @@ def evaluate(cfg, weight_pth):
         )
 
     ## evaluator
-    heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns)
+    # heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns)
+    heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns, cfg.cropsize, cfg.class_num)
     logger.info(tabulate([mious, ], headers=heads, tablefmt='orgtbl'))
 
 

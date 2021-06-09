@@ -73,6 +73,60 @@ class CityScapes(BaseDataset):
             std=(0.2112, 0.2148, 0.2115),
         )
 
+class Combined(BaseDataset):
+    '''
+    for neolix dataset
+    '''
+    def __init__(self, dataroot, annpath, trans_func=None, mode='train'):
+
+        self.n_cats = 19
+        self.lb_ignore = 255
+        assert mode in ('train', 'val', 'test')
+        self.mode = mode
+        self.trans_func = trans_func
+        self.lb_map = None
+
+        with open(annpath, 'r') as fr:
+            img_list = fr.read().splitlines()
+        self.img_paths, self.lb_paths = [], []
+        for path in img_list:
+            imgpth, lbpth = osp.join("images", mode, path), osp.join("labels", mode, path[:-4]+"_gt.png")
+            self.img_paths.append(osp.join(dataroot, imgpth))
+            self.lb_paths.append(osp.join(dataroot, lbpth))
+
+        assert len(self.img_paths) == len(self.lb_paths)
+        self.len = len(self.img_paths)
+        self.to_tensor = T.ToTensor(
+            mean=(0.3257, 0.3690, 0.3223), # city, rgb
+            std=(0.2112, 0.2148, 0.2115),
+        )
+class Neolix(BaseDataset):
+    '''
+    for neolix dataset
+    '''
+    def __init__(self, dataroot, annpath, trans_func=None, mode='train'):
+
+        self.n_cats = 5
+        self.lb_ignore = 255
+        assert mode in ('train', 'val', 'test')
+        self.mode = mode
+        self.trans_func = trans_func
+        self.lb_map = None
+
+        with open(annpath, 'r') as fr:
+            img_list = fr.read().splitlines()
+        self.img_paths, self.lb_paths = [], []
+        for path in img_list:
+            imgpth, lbpth = osp.join("images", path), osp.join("labels", path)
+            self.img_paths.append(osp.join(dataroot, imgpth))
+            self.lb_paths.append(osp.join(dataroot, lbpth))
+
+        assert len(self.img_paths) == len(self.lb_paths)
+        self.len = len(self.img_paths)
+        self.to_tensor = T.ToTensor(
+            mean=(0.3257, 0.3690, 0.3223), # city, rgb
+            std=(0.2112, 0.2148, 0.2115),
+        )
 
 def get_data_loader(datapth, annpath, ims_per_gpu, scales, cropsize, max_iter=None, mode='train', distributed=True):
     if mode == 'train':
@@ -81,13 +135,15 @@ def get_data_loader(datapth, annpath, ims_per_gpu, scales, cropsize, max_iter=No
         shuffle = True
         drop_last = True
     elif mode == 'val':
-        trans_func = TransformationVal()
+        trans_func = TransformationVal(width=cropsize[0],height=cropsize[1])
         batchsize = ims_per_gpu
         shuffle = False
         drop_last = False
 
-    ds = CityScapes(datapth, annpath, trans_func=trans_func, mode=mode)
-
+    # ds = CityScapes(datapth, annpath, trans_func=trans_func, mode=mode)
+    # ds = Neolix(datapth, annpath, trans_func=trans_func, mode=mode)
+    ds = Combined(datapth, annpath, trans_func=trans_func, mode=mode)
+    print("DataSet Size:{}; Data Root:{}".format(ds.len, datapth))
     if distributed:
         assert dist.is_available(), "dist should be initialzed"
         if mode == 'train':

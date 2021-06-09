@@ -74,8 +74,15 @@ class TransformationTrain(object):
 
 class TransformationVal(object):
 
+    def __init__(self, width, height):
+        self.w = width
+        self.h = height
+
     def __call__(self, im_lb):
         im, lb = im_lb['im'], im_lb['lb']
+        im = cv2.resize(im, (self.w, self.h))
+        lb = cv2.resize(lb, (self.w, self.h), interpolation=cv2.INTER_NEAREST)
+
         return dict(im=im, lb=lb)
 
 
