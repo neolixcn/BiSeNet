@@ -72,6 +72,10 @@ class MscEvalV0(object):
         if dist.is_initialized():
             dist.all_reduce(hist, dist.ReduceOp.SUM)
         ious = hist.diag() / (hist.sum(dim=0) + hist.sum(dim=1) - hist.diag())
+        
+        logger = logging.getLogger()
+        logger.info('class iou:{}'.format(ious))
+
         miou = ious.mean()
         return miou.item()
 
@@ -184,9 +188,9 @@ class MscEvalCrop(object):
 
 
 @torch.no_grad()
-def eval_model(net, ims_per_gpu, im_root, im_anns, cropsize, cls_num):
+def eval_model(net, dataset, ims_per_gpu, im_root, im_anns, cropsize, cls_num):
     is_dist = dist.is_initialized()
-    dl = get_data_loader(im_root, im_anns, ims_per_gpu, None,
+    dl = get_data_loader(dataset, im_root, im_anns, ims_per_gpu, None,
             cropsize=cropsize, mode='val', distributed=is_dist)
     net.eval()
 
@@ -194,7 +198,7 @@ def eval_model(net, ims_per_gpu, im_root, im_anns, cropsize, cls_num):
     logger = logging.getLogger()
 
     single_scale = MscEvalV0((1., ), False)
-    mIOU = single_scale(net, dl, 19)
+    mIOU = single_scale(net, dl, cls_num)
     heads.append('single_scale')
     mious.append(mIOU)
     logger.info('single mIOU is: %s\n', mIOU)
@@ -224,7 +228,7 @@ def eval_model(net, ims_per_gpu, im_root, im_anns, cropsize, cls_num):
         scales=(0.5, 0.75, 1.0, 1.25, 1.5, 1.75),
         lb_ignore=255,
     )
-    mIOU = ms_flip_crop(net, dl, 19)
+    mIOU = ms_flip_crop(net, dl, cls_num)
     heads.append('ms_flip_crop')
     mious.append(mIOU)
     logger.info('ms crop mIOU is: %s\n', mIOU)
@@ -237,9 +241,16 @@ def evaluate(cfg, weight_pth):
     ## model
     logger.info('setup and restore model')
     net = model_factory[cfg.model_type](cfg.class_num)
-    net = model_factory[cfg.model_type](19)
     #net = BiSeNetV2(19)
     net.load_state_dict(torch.load(weight_pth))
+    # state_all = torch.load(weight_pth) #map_location='cpu'
+    # model_dict = net.state_dict()
+    # state_clip = {}
+    # for k,v in state_all.items():
+    #     if not k in model_dict or v.shape != model_dict[k].shape:
+    #         continue
+    #     state_clip[k] = v
+    # net.load_state_dict(state_clip, strict=False)
     net.cuda()
 
     is_dist = dist.is_initialized()
@@ -253,7 +264,7 @@ def evaluate(cfg, weight_pth):
 
     ## evaluator
     # heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns)
-    heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns, cfg.cropsize, cfg.class_num)
+    heads, mious = eval_model(net, cfg.dataset, cfg.val_bs, cfg.im_root, cfg.val_im_anns, cfg.cropsize, cfg.class_num)
     logger.info(tabulate([mious, ], headers=heads, tablefmt='orgtbl'))
 
 
@@ -264,13 +275,16 @@ def parse_args():
     parse.add_argument('--weight-path', dest='weight_pth', type=str,
                        default='model_final.pth',)
     parse.add_argument('--port', dest='port', type=int, default=44553,)
-    parse.add_argument('--model', dest='model', type=str, default='bisenetv2',)
+    parse.add_argument('--val-bs', dest='val_bs', type=int, default=4,)
+    parse.add_argument('--cfg-file', dest='cfg_file', type=str, default='bisenetv2', help="specify the name without suffix of config file",)
     return parse.parse_args()
 
 
 def main():
     args = parse_args()
-    cfg = cfg_factory[args.model]
+    cfg = cfg_factory[args.cfg_file]
+    cfg.val_bs = args.val_bs
+
     if not args.local_rank == -1:
         torch.cuda.set_device(args.local_rank)
         dist.init_process_group(backend='nccl',
