@@ -10,13 +10,11 @@
 
 
 ### Export model to onnx
-I export the model like this:  
+just run the following command:
 ```
-$ python tools/export_onnx.py --model bisenetv1 --weight-path /path/to/your/model.pth --outpath ./model.onnx 
+$ python tools/export_onnx.py --cfg-file bisenetv2_neolix_fisheye --weight-path /data/pantengteng/bisenet/2021-06-26-09-35/iter_42999_model.pth --outpath ./bisenetv2.onnx --check-output
 ```
-
-**NOTE:** I use cropsize of `1024x2048` here in my example, you should change it according to your specific application. The inference cropsize is fixed from this step on, so you should decide the inference cropsize when you export the model here.
-
+if the parameter check-output is added, the script will compare the results of pytorch and onnx model.
 ### Build with source code
 Just use the standard cmake build method:  
 ```
