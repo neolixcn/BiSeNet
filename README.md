@@ -29,44 +29,23 @@ My platform is like this:
 ## get start
 With a pretrained weight, you can run inference on an single image like this: 
 ```
-$ python tools/demo.py --model bisenetv2 --weight-path /path/to/your/weights.pth --img-path ./example.png
-```
-This would run inference on the image and save the result image to `./res.jpg`.
-
-
-## prepare dataset
-
-1.cityscapes  
-
-Register and download the dataset from the official [website](https://www.cityscapes-dataset.com/). Then decompress them into the `datasets/cityscapes` directory:  
-```
-$ mv /path/to/leftImg8bit_trainvaltest.zip datasets/cityscapes
-$ mv /path/to/gtFine_trainvaltest.zip datasets/cityscapes
-$ cd datasets/cityscapes
-$ unzip leftImg8bit_trainvaltest.zip
-$ unzip gtFine_trainvaltest.zip
+$ python tools/demo_single_img.py --cfg-file bisenetv2 --weight-path /path/to/your/weights.pth --img-path ./example.png --save-path ./res/example_res.jpg
 ```
 
-2.custom dataset  
+## dataset
 
-If you want to train on your own dataset, you should generate annotation files first with the format like this: 
-```
-munster_000002_000019_leftImg8bit.png,munster_000002_000019_gtFine_labelIds.png
-frankfurt_000001_079206_leftImg8bit.png,frankfurt_000001_079206_gtFine_labelIds.png
-...
-```
-Each line is a pair of training sample and ground truth image path, which are separated by a single comma `,`.   
-Then you need to change the field of `im_root` and `train/val_im_anns` in the configuration files.
-
+Currently, support trainging with cityscapes and neolix dataset, just specify the data root, image list file for training and validation in config file, which are im_root, train_im_anns and val_im_anns.
+you can directly modify configs/bisenetv2_cityscapes.py or bisentv2_neolix_fisheye.py, or create new config file and add them in configs/init.py
 ## train
 In order to train the model, you can run command like this: 
 ```
 $ export CUDA_VISIBLE_DEVICES=0,1
 
 # if you want to train with apex
-$ python -m torch.distributed.launch --nproc_per_node=2 tools/train.py --model bisenetv2 # or bisenetv1
+$ python -m torch.distributed.launch --nproc_per_node=2 tools/train.py --cfg-file bisenetv2 # or bisenetv1
+or just run the script launch_training.sh
 
-# if you want to train with pytorch fp16 feature from torch 1.6
+# if you want to train with pytorch fp16 feature from torch 1.6(pay attention that this command is not tested with new code)
 $ python -m torch.distributed.launch --nproc_per_node=2 tools/train_amp.py --model bisenetv2 # or bisenetv1
 ```
 
@@ -77,19 +56,32 @@ Note that though `bisenetv2` has fewer flops, it requires much more training ite
 You can also load the trained model weights and finetune from it:
 ```
 $ export CUDA_VISIBLE_DEVICES=0,1
-$ python -m torch.distributed.launch --nproc_per_node=2 tools/train.py --finetune-from ./res/model_final.pth --model bisenetv2 # or bisenetv1
+$ python -m torch.distributed.launch --nproc_per_node=2 tools/train.py --finetune-from ./res/model_final.pth --cfg-file bisenetv2 # or bisenetv1
 
-# same with pytorch fp16 feature
+# same with pytorch fp16 feature(pay attention that this command is not tested with new code)
 $ python -m torch.distributed.launch --nproc_per_node=2 tools/train_amp.py --finetune-from ./res/model_final.pth --model bisenetv2 # or bisenetv1
 ```
 
-
 ## eval pretrained models
-You can also evaluate a trained model like this: 
-```
-$ python tools/evaluate.py --model bisenetv1 --weight-path /path/to/your/weight.pth
-```
 
+You can evaluate a trained model like this: 
+```
+$python tools/evaluate.py --weight-path /home/pantengteng/Programs/BiSeNet/res/model_final.pth --cfg-file bisenetv2_neolix_fisheye  
+```
+If you need to evaluate trained model in different dataset, just change the im_root and val_im_anns in config file.
+
+# visualize
+support two ways to specify images.
+## specify image folder
+Only the img-path parameter need to be specify in this way.
+```
+$python tools/demo.py --cfg-file bisenetv1 --weight-path /home/pantengteng/Programs/BiSeNet/res/2021-03-02-07-17-30_model_final.pth --img-path /data/pantengteng/lane_detection_test/snow_lane_detection --save-path /home/pantengteng/Programs/BiSeNet/results/hengtong_snow_test_v1
+```
+## specify image list
+The img-path parameter and list-file parameter should be specified in this way.
+```
+$CUDA_VISIBLE_DEVICES=3 python tools/demo.py --cfg-file bisenetv2_neolix_fisheye --img-path /nfs/neolix_data1/neolix_dataset/test_dataset/freespace_segmentation/neolix_freespace_fisheye/images/ --list-file /nfs/neolix_data1/neolix_dataset/test_dataset/freespace_segmentation/neolix_freespace_fisheye/test.txt --save-path ./results/testtest --weight-path /data/pantengteng/bisenet/2021-06-21-19-36/iter_47999_model.pth
+```
 ## Infer with tensorrt
 You can go to [tensorrt](./tensorrt) For details.
 
@@ -97,3 +89,6 @@ You can go to [tensorrt](./tensorrt) For details.
 ### Be aware that this is the refactored version of the original codebase. You can go to the `old` directory for original implementation.
 
 
+# 多尺度评估
+https://github.com/CoinCheung/BiSeNet/issues/55
+https://github.com/CoinCheung/BiSeNet/issues/85
