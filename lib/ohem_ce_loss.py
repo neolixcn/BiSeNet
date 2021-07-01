@@ -31,7 +31,8 @@ class OhemCELoss(nn.Module):
         self.thresh = -torch.log(torch.tensor(thresh, requires_grad=False, dtype=torch.float)).cuda()
         self.ignore_lb = ignore_lb
         self.criteria = nn.CrossEntropyLoss(ignore_index=ignore_lb, reduction='none')
-
+        # add class_weight
+        # self.criteria = nn.CrossEntropyLoss(weight=torch.tensor([0.2, 0.3, 0.15, 0.15, 0.2]).cuda(), ignore_index=ignore_lb, reduction='none')
     def forward(self, logits, labels):
         n_min = labels[labels != self.ignore_lb].numel() // 16
         loss = self.criteria(logits, labels).view(-1)

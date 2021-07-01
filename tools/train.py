@@ -25,7 +25,7 @@ from configs import cfg_factory
 from lib.cityscapes_cv2 import get_data_loader
 from tools.evaluate import eval_model
 from lib.ohem_ce_loss import OhemCELoss
-from lib.lr_scheduler import WarmupPolyLrScheduler
+from lib.lr_scheduler import WarmupPolyLrScheduler, WarmupCosineLrScheduler
 from lib.meters import TimeMeter, AvgMeter
 from lib.logger import setup_logger, print_log_msg
 
@@ -67,8 +67,8 @@ def set_model():
     # net = model_factory[cfg.model_type](19)
     if not args.finetune_from is None:
         logger = logging.getLogger()
-        logger.info('finetune from ', args.finetune_from)
-        state_all = torch.load(args.finetune_from, map_location='cpu')
+        logger.info('finetune from {}'.format(args.finetune_from))
+        state_all = torch.load(args.finetune_from) #map_location='cpu'
         model_dict = net.state_dict()
         state_clip = {}
         for k,v in state_all.items():
@@ -163,6 +163,12 @@ def train():
         cfg.val_bs, None, cfg.cropsize,
         None, mode='val', distributed=is_dist)
 
+    # for validating with test set
+    # val_dl = get_data_loader(cfg.dataset,
+    #     '/nfs/neolix_data1/neolix_dataset/test_dataset/freespace_segmentation/neolix_freespace_fisheye', cfg.val_im_anns,
+    #     cfg.val_bs, None, cfg.cropsize,
+    #     None, mode='val', distributed=is_dist)
+
     ## model
     net, criteria_pre, criteria_aux = set_model()
 
@@ -181,8 +187,11 @@ def train():
     time_meter, loss_meter, loss_pre_meter, loss_aux_meters = set_meters()
 
     ## lr scheduler
-    lr_schdr = WarmupPolyLrScheduler(optim, power=0.9,
-        max_iter=cfg.max_iter, warmup_iter=cfg.warmup_iters,
+    # lr_schdr = WarmupPolyLrScheduler(optim, power=0.9,
+    #     max_iter=cfg.max_iter, warmup_iter=cfg.warmup_iters,
+    #     warmup_ratio=0.1, warmup='exp', last_epoch=-1,)
+    lr_schdr = WarmupCosineLrScheduler(optim, max_iter=cfg.max_iter, 
+        warmup_iter=cfg.warmup_iters,
         warmup_ratio=0.1, warmup='exp', last_epoch=-1,)
 
     if rank == 0:
@@ -195,8 +204,6 @@ def train():
         net.train()
         im = im.cuda()
         lb = lb.cuda()
-        lb = torch.squeeze(lb, 1)
-        
         optim.zero_grad()
         logits, *logits_aux = net(im)
         loss_pre = criteria_pre(logits, lb)
