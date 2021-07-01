@@ -21,12 +21,12 @@ np.random.seed(123)
 
 # args
 parse = argparse.ArgumentParser()
-parse.add_argument('--model', dest='model', type=str, default='bisenetv2',)
+parse.add_argument('--cfg-file', dest='cfg_file', type=str, default='bisenetv2', help="specify the name without suffix of config file",)
 parse.add_argument('--weight-path', type=str, default='./res/model_final.pth',)
 parse.add_argument('--img-path', dest='img_path', type=str, default='./example.png',)
 parse.add_argument('--save-path', dest='save_path', type=str, default='./res.jpg',)
 args = parse.parse_args()
-cfg = cfg_factory[args.model]
+cfg = cfg_factory[args.cfg_file]
 
 if os.path.exists(args.save_path):
     os.path.makedirs(args.save_path)
