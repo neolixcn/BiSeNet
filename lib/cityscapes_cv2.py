@@ -68,6 +68,7 @@ class CityScapes(BaseDataset):
         self.mode = mode
         self.trans_func = trans_func
         self.lb_map = None
+        self.convert_5cls_to_4 = False
 
         with open(annpath, "r") as f:
             img_list = f.read().splitlines()
@@ -95,6 +96,7 @@ class Combined(BaseDataset):
         self.mode = mode
         self.trans_func = trans_func
         self.lb_map = None
+        self.convert_5cls_to_4 = False
 
         with open(annpath, 'r') as fr:
             img_list = fr.read().splitlines()
@@ -114,7 +116,7 @@ class Neolix(BaseDataset):
     '''
     for neolix dataset
     '''
-    def __init__(self, dataroot, annpath, trans_func=None, mode='train'):
+    def __init__(self, dataroot, annpath, trans_func=None, mode='train',convert_label=False):
 
         self.n_cats = 5
         self.lb_ignore = 255
@@ -122,6 +124,7 @@ class Neolix(BaseDataset):
         self.mode = mode
         self.trans_func = trans_func
         self.lb_map = None
+        self.convert_5cls_to_4=convert_label
 
         with open(annpath, 'r') as fr:
             img_list = fr.read().splitlines()

@@ -13,13 +13,13 @@ import numpy as np
 
 import lib.transform_cv2 as T
 from lib.sampler import RepeatedDistSampler
-
+import albumentations as A
 
 
 class BaseDataset(Dataset):
     '''
     '''
-    def __init__(self, dataroot, annpath, trans_func=None, mode='train'):
+    def __init__(self, dataroot, annpath, trans_func=None, mode='train',convert_label=False):
         super(BaseDataset, self).__init__()
         assert mode in ('train', 'val', 'test')
         self.mode = mode
@@ -37,6 +37,8 @@ class BaseDataset(Dataset):
 
         assert len(self.img_paths) == len(self.lb_paths)
         self.len = len(self.img_paths)
+        self.convert_5cls_to_4=convert_label
+        # self.extra_transform=
 
     def __getitem__(self, idx):
         impth, lbpth = self.img_paths[idx], self.lb_paths[idx]
@@ -48,7 +50,12 @@ class BaseDataset(Dataset):
             im_lb = self.trans_func(im_lb)
         im_lb = self.to_tensor(im_lb)
         img, label = im_lb['im'], im_lb['lb']
-        return img.detach(), label.unsqueeze(0).detach()
+        # Pyten-CombineCermentAndOtherRoad
+        if self.convert_5cls_to_4:
+            label[label==3] =  2
+            label[label==4] =  3
+
+        return img.detach(), label.detach() # .unsqueeze(0)
 
     def __len__(self):
         return self.len
@@ -64,6 +71,12 @@ class TransformationTrain(object):
                 brightness=0.4,
                 contrast=0.4,
                 saturation=0.4
+            ),
+            T.AlbumAug(
+                        A.Compose([
+                        A.ToGray(p=0.3),
+                        A.Blur(blur_limit=3, p=0.3),
+                        ])
             ),
         ])
 
@@ -82,6 +95,9 @@ class TransformationVal(object):
         im, lb = im_lb['im'], im_lb['lb']
         im = cv2.resize(im, (self.w, self.h))
         lb = cv2.resize(lb, (self.w, self.h), interpolation=cv2.INTER_NEAREST)
+        # for crop
+        # im = im[208:, :, :]
+        # lb = lb[208:, :]
 
         return dict(im=im, lb=lb)
 

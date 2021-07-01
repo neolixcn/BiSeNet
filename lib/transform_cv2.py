@@ -117,6 +117,23 @@ class ColorJitter(object):
         return table[im]
 
 
+        # Pyten-20210625-AddTransforms
+        # img = transforms.
+class AlbumAug(object):
+    '''
+    transform with Albumentation.
+    Args:
+    input: dictionary consist of image and label. both image and label are in numpy format.
+    output: dictionary consist of transformed image and label.
+    '''
+    def __init__(self, transform):
+        self.transform = transform
+    def __call__(self,im_lb):
+        im, lb = im_lb['im'], im_lb['lb']
+        transformed = self.transform(image=im, mask=lb)
+        im = transformed["image"]
+        lb = transformed["mask"]
+        return dict(im=im, lb=lb)
 
 
 class ToTensor(object):
