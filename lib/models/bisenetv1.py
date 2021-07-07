@@ -139,7 +139,8 @@ class ContextPath(nn.Module):
 
         feat32_arm = self.arm32(feat32)
         feat32_sum = feat32_arm + avg
-        feat32_up = self.up32(feat32_sum)
+        # feat32_up = self.up32(feat32_sum)
+        feat32_up = F.interpolate(feat32_sum, size=feat16.size()[2:])
         feat32_up = self.conv_head32(feat32_up)
 
         feat16_arm = self.arm16(feat16)
